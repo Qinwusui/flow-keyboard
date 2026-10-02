@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">FlowKeyboard</string>
+    <string name="ime_subtype">Conveyor · English</string>
+    <string name="ime_subtype_pinyin">传送带 · 拼音</string>
+    <string name="app_tagline">传送带旋转输入法</string>
+    <string name="enable_keyboard">1. Enable FlowKeyboard</string>
+    <string name="select_keyboard">2. Select keyboard</string>
+    <string name="sandbox_hint">Tap a passing key to try the conveyor…</string>
+    <string name="typing_instructions">Tap any key, or tap the target line as a key passes. Drag a lane to move it; fling to coast.</string>
+    <string name="settings">Keyboard settings</string>
+    <string name="sound">Mechanical sounds</string>
+    <string name="haptics">Haptic feedback</string>
+    <string name="alphabetical">A–Z key order</string>
+    <string name="enabled">Enabled</string>
+    <string name="not_enabled">Not enabled yet</string>
+    <string name="active">FlowKeyboard is selected</string>
+    <string name="not_active">Choose FlowKeyboard to use it in other apps</string>
+</resources>

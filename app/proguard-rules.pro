@@ -1,0 +1,11 @@
+# Manifest components and Room-generated implementations need stable constructors.
+-keep class com.flowkeyboard.android.ui.keyboard.FlowKeyboardService { *; }
+-keep class com.flowkeyboard.android.FlowKeyboardApp { *; }
+-keep @androidx.room.Entity class com.flowkeyboard.android.data.local.database.** { *; }
+-keep @androidx.room.Dao interface com.flowkeyboard.android.data.local.database.** { *; }
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep class com.flowkeyboard.android.data.local.database.*_Impl { *; }
+-keep class com.flowkeyboard.android.di.AppModuleKt { *; }
+-keep class org.koin.core.module.Module { *; }
+-keep class androidx.compose.runtime.** { *; }
+-keepattributes Signature,InnerClasses,EnclosingMethod,*Annotation*

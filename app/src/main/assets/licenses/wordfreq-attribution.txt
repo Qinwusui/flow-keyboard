@@ -1,0 +1,16 @@
+Dictionary vocabulary selected from wordfreq 3.1.1 by Robyn Speer (2022).
+https://github.com/rspeer/wordfreq
+https://doi.org/10.5281/zenodo.7199437
+
+The generated dictionary.tsv is distributed under CC BY-SA 4.0.
+Changes: selected 1,000 short Chinese entries, added curated keyboard phrases,
+converted to tone-free pinyin, and assigned application-specific base weights.
+
+Source-data credits: Google Books Ngrams (https://books.google.com/ngrams),
+University of Leeds Internet Corpus (https://corpus.leeds.ac.uk/list.html),
+Wikipedia (https://www.wikipedia.org), ParaCrawl (https://paracrawl.eu),
+OpenSubtitles (https://www.opensubtitles.org), and freely available SUBTLEX data
+by Marc Brysbaert and colleagues (https://crr.ugent.be/programs-data/subtitle-frequencies).
+
+Pinyin conversion: pypinyin 0.55.0 by mozillazg and contributors, MIT license.
+https://github.com/mozillazg/python-pinyin

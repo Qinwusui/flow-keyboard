@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.FlowKeyboard" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:colorAccent">@color/flow_primary</item>
+        <item name="android:windowBackground">@color/flow_background</item>
+    </style>
+</resources>

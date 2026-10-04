@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">传送带输入法</string>
+    <string name="ime_subtype">传送带 · 英文</string>
+    <string name="ime_subtype_pinyin">传送带 · 拼音</string>
+    <string name="app_tagline">传送带旋转输入法</string>
+    <string name="enable_keyboard">1. 启用传送带输入法</string>
+    <string name="select_keyboard">2. 选择输入法</string>
+    <string name="sandbox_hint">点击流过的按键体验传送带…</string>
+    <string name="typing_instructions">点击移动中的按键直接输入。拖拽轨道滚动，甩动可惯性滑行。</string>
+    <string name="settings">输入法设置</string>
+    <string name="sound">机械按键音</string>
+    <string name="haptics">触感反馈</string>
+    <string name="alphabetical">A–Z 字母顺序</string>
+    <string name="enabled">已启用</string>
+    <string name="not_enabled">尚未启用</string>
+    <string name="active">传送带输入法已选择</string>
+    <string name="not_active">选择传送带输入法以便在其他应用中使用</string>
+    <string name="vibration_level">振动强度</string>
+    <string name="pinyin_mode">拼音输入模式</string>
+    <string name="conveyor_cruising">自动滚动传送带</string>
+    <string name="conveyor_speed">传送带流速</string>
+    <string name="vertical_orientation">纵向传送带模式</string>
+</resources>

@@ -6,7 +6,7 @@
     <string name="enable_keyboard">1. Enable FlowKeyboard</string>
     <string name="select_keyboard">2. Select keyboard</string>
     <string name="sandbox_hint">Tap a passing key to try the conveyor…</string>
-    <string name="typing_instructions">Tap any key, or tap the target line as a key passes. Drag a lane to move it; fling to coast.</string>
+    <string name="typing_instructions">Tap any moving key to type. Drag a lane to move it; fling to coast.</string>
     <string name="settings">Keyboard settings</string>
     <string name="sound">Mechanical sounds</string>
     <string name="haptics">Haptic feedback</string>
@@ -15,4 +15,9 @@
     <string name="not_enabled">Not enabled yet</string>
     <string name="active">FlowKeyboard is selected</string>
     <string name="not_active">Choose FlowKeyboard to use it in other apps</string>
+    <string name="vibration_level">Vibration intensity</string>
+    <string name="pinyin_mode">Pinyin input mode</string>
+    <string name="conveyor_cruising">Auto-flow conveyor</string>
+    <string name="conveyor_speed">Conveyor speed</string>
+    <string name="vertical_orientation">Vertical conveyor lanes</string>
 </resources>

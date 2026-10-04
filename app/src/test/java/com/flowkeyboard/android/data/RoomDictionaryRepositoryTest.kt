@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -112,12 +113,12 @@ class RoomDictionaryRepositoryTest {
             listOf(
                 DictionaryEntity(1L, "你好", "nihao", "nh", baseWeight = 250L),
                 DictionaryEntity(2L, "你们", "nimen", "nm", baseWeight = 100L, frequency = 2L),
-                DictionaryEntity(3L, "你", "ni", "n", baseWeight = 200L),
+                DictionaryEntity(3L, "你的", "nide", "nd", baseWeight = 200L),
             ),
         )
 
         val suggestions = repository.search("ni").first()
-        assertEquals(listOf("你们", "你好", "你"), suggestions.map { it.word })
+        assertEquals(listOf("你们", "你好", "你的"), suggestions.map { it.word })
         assertEquals(listOf(300L, 250L, 200L), suggestions.map { it.weight })
     }
 
@@ -137,13 +138,13 @@ class RoomDictionaryRepositoryTest {
     @Test
     fun searchPrefix_respectsCustomAndDefaultResultLimits() = runTest {
         dao.insertAll(
-            (1L..25L).map { id ->
+            (1L..105L).map { id ->
                 DictionaryEntity(id, "词$id", "ni", "n", baseWeight = id)
             },
         )
 
-        assertEquals(20, repository.search("ni").first().size)
-        assertEquals(listOf(25L, 24L), dao.searchPrefix("ni", limit = 2).first().map { it.id })
+        assertEquals(100, repository.search("ni").first().size)
+        assertEquals(listOf(105L, 104L), dao.searchPrefix("ni", limit = 2).first().map { it.id })
         assertTrue(dao.searchPrefix("ni", limit = 0).first().isEmpty())
     }
 
@@ -224,14 +225,230 @@ class RoomDictionaryRepositoryTest {
     }
 
     @Test
+    fun search_multiSyllableCombinesFullWordAndFirstSyllableCandidates() = runTest {
+        dao.insertAll(
+            listOf(
+                DictionaryEntity(10L, "键盘", "jianpan", "jp", baseWeight = 400L),
+                DictionaryEntity(11L, "键", "jian", "j", baseWeight = 300L),
+                DictionaryEntity(12L, "见", "jian", "j", baseWeight = 250L),
+                DictionaryEntity(13L, "建议", "jianyi", "jy", baseWeight = 200L),
+                DictionaryEntity(14L, "盘", "pan", "p", baseWeight = 300L),
+            ),
+        )
+
+        val results = repository.search("jianpan").first().map { it.word }
+        assertEquals(listOf("键盘", "键", "见"), results)
+    }
+
+    @Test
+    fun predictNext_returnsSuffixMatchesAndDefaultFollowUps() = runTest {
+        dao.insertAll(
+            listOf(
+                DictionaryEntity(100L, "键盘输入", "jianpansr", "jpsr", baseWeight = 400L),
+                DictionaryEntity(101L, "键盘鼠标", "jianpansb", "jpsb", baseWeight = 300L),
+                DictionaryEntity(102L, "键盘", "jianpan", "jp", baseWeight = 200L),
+            ),
+        )
+
+        val predictions = repository.predictNext("键盘").first().map { it.word }
+        assertTrue(predictions.contains("输入"))
+        assertTrue(predictions.contains("鼠标"))
+        assertFalse(predictions.contains("键盘"))
+        assertTrue(predictions.contains("的"))
+    }
+
+    @Test
+    fun search_matchesTranspositionInitials() = runTest {
+        dao.insertAll(
+            listOf(
+                DictionaryEntity(10L, "我感觉", "woganjue", "wgj", baseWeight = 50L),
+                DictionaryEntity(11L, "外交官", "waijiaoguan", "wjg", baseWeight = 10L),
+            )
+        )
+        val results = repository.search("wjg").first().map { it.word }
+        assertTrue(results.contains("外交官"))
+        assertTrue(results.contains("我感觉"))
+    }
+
+    @Test
+    fun recordTransition_prioritizesUserLearnedNextWordInPrediction() = runTest {
+        repository.recordTransition("我", "感觉")
+        val predictions = repository.predictNext("我").first()
+        assertEquals("感觉", predictions.first().word)
+    }
+
+    @Test
+    fun learnCompound_createsUserCompoundPhrase() = runTest {
+        dao.insertAll(
+            listOf(
+                DictionaryEntity(1L, "我", "wo", "w", baseWeight = 50L),
+                DictionaryEntity(2L, "感觉", "ganjue", "gj", baseWeight = 50L),
+            )
+        )
+        repository.learnCompound("我", "感觉")
+        val found = dao.findByWord("我感觉")
+        assertTrue(found != null)
+        assertEquals("woganjue", found?.pinyin)
+        assertEquals("wgj", found?.initials)
+    }
+
+    @Test
     fun firstCreation_seedsAThousandUsableEntries() = runTest {
         val context = ApplicationProvider.getApplicationContext<Application>()
         val seeded = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .setDriver(BundledSQLiteDriver()).addCallback(AppDatabase.seedCallback(context)).build()
         try {
-            assertEquals(1000, seeded.dictionaryDao().count())
+            assertTrue(seeded.dictionaryDao().count() >= 50000)
             assertTrue(seeded.dictionaryDao().searchPrefix("nihao").first().any { it.word == "你好" })
+            assertTrue(seeded.dictionaryDao().searchPrefix("jianpan").first().any { it.word == "键盘" })
+            assertTrue(seeded.dictionaryDao().searchPrefix("pan").first().any { it.word == "盘" })
+            assertTrue(seeded.dictionaryDao().searchPrefix("jian").first().any { it.word == "键" })
+            assertTrue(seeded.dictionaryDao().searchPrefix("dyz").first().any { it.word == "多音字" })
+            assertTrue(seeded.dictionaryDao().searchPrefix("hang").first().any { it.word == "行" })
+            assertTrue(seeded.dictionaryDao().searchPrefix("chang").first().any { it.word == "长" })
+            assertTrue(seeded.dictionaryDao().searchPrefix("smdx").first().any { it.word == "什么东西" })
         } finally { seeded.close() }
+    }
+
+    @Test
+    fun search_smdx_returnsShenMeDongXi() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val seeded = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .setDriver(BundledSQLiteDriver()).addCallback(AppDatabase.seedCallback(context)).build()
+        val repo = RoomDictionaryRepository(seeded.dictionaryDao(), seeded.statDao())
+        try {
+            val results = repo.search("smdx").first().map { it.word }
+            assertTrue("Expected '什么东西' in $results", results.contains("什么东西"))
+            assertEquals("什么东西", results.first())
+        } finally { seeded.close() }
+    }
+
+    @Test
+    fun predictNext_usesPreSeededBigramTransitions() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val seeded = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .setDriver(BundledSQLiteDriver()).addCallback(AppDatabase.seedCallback(context)).build()
+        val repo = RoomDictionaryRepository(seeded.dictionaryDao(), seeded.statDao())
+        try {
+            val predictions = repo.predictNext("人工").first().map { it.word }
+            assertTrue("Expected '智能' in $predictions", predictions.contains("智能"))
+
+            val inputPredictions = repo.predictNext("输入").first().map { it.word }
+            assertTrue("Expected '法' in $inputPredictions", inputPredictions.contains("法"))
+        } finally { seeded.close() }
+    }
+
+    @Test
+    fun search_idiomInitials_findsFourCharacterIdioms() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val seeded = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .setDriver(BundledSQLiteDriver()).addCallback(AppDatabase.seedCallback(context)).build()
+        val repo = RoomDictionaryRepository(seeded.dictionaryDao(), seeded.statDao())
+        try {
+            val results = repo.search("hjbf").first().map { it.word }
+            assertTrue("Expected '厚积薄发' in $results", results.contains("厚积薄发"))
+        } finally { seeded.close() }
+    }
+
+    @Test
+    fun search_hybridAbbreviation_findsTargetWord() = runTest {
+        dao.insertAll(
+            listOf(
+                DictionaryEntity(10L, "多音字", "duoyinzi", "dyz", baseWeight = 50L),
+                DictionaryEntity(11L, "北京", "beijing", "bj", baseWeight = 50L),
+            )
+        )
+        val dyziResults = repository.search("dyzi").first().map { it.word }
+        assertTrue("Expected '多音字' in $dyziResults", dyziResults.contains("多音字"))
+
+        val bjingResults = repository.search("bjing").first().map { it.word }
+        assertTrue("Expected '北京' in $bjingResults", bjingResults.contains("北京"))
+    }
+
+    @Test
+    fun search_polyphones_findsCharactersUnderMultiplePronunciations() = runTest {
+        dao.insertAll(
+            listOf(
+                DictionaryEntity(20L, "行", "xing", "x", baseWeight = 30L),
+                DictionaryEntity(21L, "行", "hang", "h", baseWeight = 35L),
+                DictionaryEntity(22L, "长", "zhang", "z", baseWeight = 40L),
+                DictionaryEntity(23L, "长", "chang", "c", baseWeight = 38L),
+            )
+        )
+        val hangResults = repository.search("hang").first().map { it.word }
+        assertTrue(hangResults.contains("行"))
+
+        val xingResults = repository.search("xing").first().map { it.word }
+        assertTrue(xingResults.contains("行"))
+
+        val changResults = repository.search("chang").first().map { it.word }
+        assertTrue(changResults.contains("长"))
+
+        val zhangResults = repository.search("zhang").first().map { it.word }
+        assertTrue(zhangResults.contains("长"))
+    }
+
+    @Test
+    fun search_wo_prioritizesWoOverWomen() = runTest {
+        dao.insertAll(
+            listOf(
+                DictionaryEntity(1L, "我们", "women", "wm", baseWeight = 50L),
+                DictionaryEntity(2L, "我", "wo", "w", baseWeight = 48L),
+            )
+        )
+        val results = repository.search("wo").first().map { it.word }
+        assertEquals("我", results.first())
+    }
+
+    @Test
+    fun search_seededDatabase_typingWoDirectlyShowsWoFirst() = runTest {
+        val seeded = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            AppDatabase::class.java,
+        ).setDriver(BundledSQLiteDriver()).addCallback(AppDatabase.seedCallback(ApplicationProvider.getApplicationContext())).build()
+        try {
+            val repo = RoomDictionaryRepository(seeded.dictionaryDao(), seeded.statDao())
+            val woResults = repo.search("wo").first().map { it.word }
+            assertEquals("我", woResults.first())
+
+            val womenResults = repo.search("women").first().map { it.word }
+            assertEquals("我们", womenResults.first())
+
+            val wmResults = repo.search("wm").first().map { it.word }
+            assertEquals("我们", wmResults.first())
+        } finally {
+            seeded.close()
+        }
+    }
+
+    @Test
+    fun search_activeSegmentation_xian_prioritizesXiAnOverSingleSyllables() = runTest {
+        dao.insertAll(
+            listOf(
+                DictionaryEntity(1L, "先", "xian", "x", baseWeight = 24L),
+                DictionaryEntity(2L, "西安", "xian", "xa", baseWeight = 10L),
+            )
+        )
+        val segmentedResults = repository.search("xi'an").first().map { it.word }
+        assertEquals("西安", segmentedResults.first())
+
+        val unsegmentedResults = repository.search("xian").first().map { it.word }
+        assertEquals("先", unsegmentedResults.first())
+    }
+
+    @Test
+    fun search_activeSegmentation_fangan_disambiguatesFangAnAndFanGan() = runTest {
+        dao.insertAll(
+            listOf(
+                DictionaryEntity(1L, "方案", "fangan", "fa", baseWeight = 20L),
+                DictionaryEntity(2L, "反感", "fangan", "fg", baseWeight = 25L),
+            )
+        )
+        val fangAnResults = repository.search("fang'an").first().map { it.word }
+        assertEquals("方案", fangAnResults.first())
+
+        val fanGanResults = repository.search("fan'gan").first().map { it.word }
+        assertEquals("反感", fanGanResults.first())
     }
 
     private fun entries() = listOf(

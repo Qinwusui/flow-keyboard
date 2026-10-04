@@ -8,6 +8,7 @@ import com.flowkeyboard.android.model.BeltOrientation
 import com.flowkeyboard.android.model.InputMode
 import com.flowkeyboard.android.model.KeyOrder
 import com.flowkeyboard.android.model.KeyboardSettings
+import com.flowkeyboard.android.model.KeyboardSkin
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -108,12 +109,55 @@ class SettingsRepositoryTest {
     fun update_persistsKeyOrderAndInputMode() = runTest {
         val repository = createRepository()
 
-        repository.update { it.copy(keyOrder = KeyOrder.ALPHABETICAL, inputMode = InputMode.PINYIN) }
+        repository.update { it.copy(keyOrder = KeyOrder.ALPHABETICAL, inputMode = InputMode.ENGLISH) }
 
         assertEquals(
-            KeyboardSettings(keyOrder = KeyOrder.ALPHABETICAL, inputMode = InputMode.PINYIN),
+            KeyboardSettings(keyOrder = KeyOrder.ALPHABETICAL, inputMode = InputMode.ENGLISH),
             repository.settings.first(),
         )
+    }
+
+    @Test
+    fun update_persistsAndNormalizesVibrationLevel() = runTest {
+        val repository = createRepository()
+
+        repository.update { it.copy(vibrationLevel = 0.8f) }
+        assertEquals(0.8f, repository.settings.first().vibrationLevel, 0.001f)
+
+        repository.update { it.copy(vibrationLevel = -0.5f) }
+        assertEquals(0.0f, repository.settings.first().vibrationLevel, 0.001f)
+
+        repository.update { it.copy(vibrationLevel = 1.5f) }
+        assertEquals(1.0f, repository.settings.first().vibrationLevel, 0.001f)
+
+        repository.update { it.copy(vibrationLevel = Float.NaN) }
+        assertEquals(0.5f, repository.settings.first().vibrationLevel, 0.001f)
+    }
+
+    @Test
+    fun update_persistsSkin() = runTest {
+        val repository = createRepository()
+
+        repository.update { it.copy(skin = KeyboardSkin.OBSIDIAN_PURE) }
+        assertEquals(KeyboardSettings(skin = KeyboardSkin.OBSIDIAN_PURE), repository.settings.first())
+
+        repository.update { it.copy(skin = KeyboardSkin.SAKURA_BLOSSOM) }
+        assertEquals(KeyboardSettings(skin = KeyboardSkin.SAKURA_BLOSSOM), repository.settings.first())
+    }
+
+    @Test
+    fun update_persistsCustomBackgroundAndBrightness() = runTest {
+        val repository = createRepository()
+
+        repository.update { it.copy(customBackgroundPath = "/data/user/0/test.jpg", backgroundBrightness = 0.8f) }
+        val updated = repository.settings.first()
+        assertEquals("/data/user/0/test.jpg", updated.customBackgroundPath)
+        assertEquals(0.8f, updated.backgroundBrightness, 0.001f)
+
+        repository.update { it.copy(customBackgroundPath = null, backgroundBrightness = 0.05f) }
+        val cleared = repository.settings.first()
+        assertEquals(null, cleared.customBackgroundPath)
+        assertEquals(0.1f, cleared.backgroundBrightness, 0.001f)
     }
 
     @Test

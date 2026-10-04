@@ -11,4 +11,5 @@ sealed interface FlowKeyboardAction {
     data object ToggleOrientation : FlowKeyboardAction
     data object ToggleInputMode : FlowKeyboardAction
     data object BeltTick : FlowKeyboardAction
+    data class ToggleCandidateExpansion(val expanded: Boolean? = null) : FlowKeyboardAction
 }

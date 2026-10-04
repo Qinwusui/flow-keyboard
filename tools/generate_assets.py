@@ -12,18 +12,21 @@ from wordfreq import top_n_list
 ROOT = Path(__file__).resolve().parents[1]
 MANUAL = ["你好", "中国", "我们", "世界", "谢谢", "再见", "输入法", "传送带", "北京", "上海", "中文", "拼音",
           "今天", "明天", "朋友", "学习", "工作", "生活", "手机", "电脑", "可以", "时间", "喜欢", "快乐", "早上",
-          "晚上", "早上好", "晚安", "你们", "他们"]
+          "晚上", "早上好", "晚安", "你们", "他们",
+          "键盘", "按键", "鼠标", "屏幕", "软件", "硬件", "程序", "代码", "测试", "开发", "系统",
+          "键", "盘", "见", "间", "件", "建", "简", "判", "盼", "攀",
+          "什么东西", "什么时候", "不知道"]
 words = []
-for word in MANUAL + top_n_list("zh", 10_000):
+for word in MANUAL + top_n_list("zh", 80_000):
     if word in words or not 1 <= len(word) <= 4 or not all("\u4e00" <= c <= "\u9fff" for c in word):
         continue
     syllables = lazy_pinyin(word, style=Style.NORMAL, errors="ignore")
     if len(syllables) != len(word) or any(not s.isascii() or not s.isalpha() for s in syllables):
         continue
     words.append(word)
-    if len(words) == 1_000:
+    if len(words) >= 50_000:
         break
-assert len(words) == 1_000
+assert len(words) >= 50_000
 rows = ["# word\tpinyin (tone-free, v for ü)\tinitials\tbase weight"]
 for index, word in enumerate(words):
     syllables = [s.replace("ü", "v") for s in lazy_pinyin(word, style=Style.NORMAL)]

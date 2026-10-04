@@ -33,19 +33,55 @@ class FeedbackEngine(context: Context) : AutoCloseable {
         turn = pool.load(context, R.raw.belt_tick, 1)
     }
 
-    fun keyPress(settings: KeyboardSettings) = feedback(settings, press, 0.35f, 9, 50)
+    fun keyPress(settings: KeyboardSettings) {
+        if (closed) return
+        if (settings.soundEnabled && audio?.ringerMode == AudioManager.RINGER_MODE_NORMAL && press in loaded) {
+            pool.play(press, 0.35f, 0.35f, 0, 0, 1f)
+        }
+        if (settings.hapticsEnabled && settings.vibrationLevel > 0f) {
+            performCrispHaptic(settings.vibrationLevel)
+        }
+    }
+
     fun beltTick(settings: KeyboardSettings) {
         val now = SystemClock.elapsedRealtime()
         if (now - lastTick < 150) return
         lastTick = now
-        feedback(settings, turn, 0.08f, 3, 20)
-    }
-    private fun feedback(settings: KeyboardSettings, sound: Int, volume: Float, duration: Long, amplitude: Int) {
         if (closed) return
-        if (settings.soundEnabled && audio?.ringerMode == AudioManager.RINGER_MODE_NORMAL && sound in loaded)
-            pool.play(sound, volume, volume, 0, 0, 1f)
-        if (settings.hapticsEnabled && vibrator?.hasVibrator() == true)
-            vibrator.vibrate(VibrationEffect.createOneShot(duration, amplitude))
+        if (settings.soundEnabled && audio?.ringerMode == AudioManager.RINGER_MODE_NORMAL && turn in loaded) {
+            pool.play(turn, 0.08f, 0.08f, 0, 0, 1f)
+        }
     }
+
+    fun previewVibration(level: Float) {
+        if (closed || level <= 0f) return
+        performCrispHaptic(level)
+    }
+
+    private fun performCrispHaptic(level: Float) {
+        if (closed || vibrator?.hasVibrator() != true) return
+        val clamped = level.coerceIn(0.01f, 1f)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_CLICK)) {
+                vibrator.vibrate(
+                    VibrationEffect.startComposition()
+                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, clamped)
+                        .compose()
+                )
+                return
+            }
+        } catch (_: Throwable) {}
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
+                return
+            }
+        } catch (_: Throwable) {}
+
+        val amp = (255 * clamped).toInt().coerceIn(1, 255)
+        vibrator.vibrate(VibrationEffect.createOneShot(5, amp))
+    }
+
     override fun close() { if (!closed) { closed = true; pool.release(); vibrator?.cancel() } }
 }

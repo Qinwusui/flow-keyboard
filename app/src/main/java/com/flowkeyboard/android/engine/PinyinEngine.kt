@@ -29,36 +29,71 @@ class PinyinEngine {
 
     fun clear(): String = text.also { buffer.value = "" }
 
+    fun set(newText: String) {
+        buffer.value = newText.lowercase(Locale.ROOT).filter { it in 'a'..'z' || it == '\'' }.take(MAX_LENGTH)
+    }
+
     fun matches(candidate: DictionaryItem): Boolean {
         val prefix = searchPrefix
         return prefix.isNotEmpty() && candidate.pinyin.lowercase(Locale.ROOT).replace("'", "").startsWith(prefix)
     }
 
     /** Returns full syllables plus an optional incomplete last syllable, or null for invalid input. */
-    fun syllables(): List<String>? {
-        if (text.isEmpty()) return emptyList()
-        val result = mutableListOf<String>()
-        for (part in text.split('\'')) {
-            if (part.isEmpty()) continue
-            val paths = arrayOfNulls<List<String>>(part.length + 1)
-            paths[0] = emptyList()
-            for (end in 1..part.length) {
-                for (start in (end - 6).coerceAtLeast(0) until end) {
-                    val previous = paths[start] ?: continue
-                    val value = part.substring(start, end)
-                    if (value in VALID_SYLLABLES || (end == part.length && VALID_SYLLABLES.any { it.startsWith(value) })) {
-                        paths[end] = previous + value
-                        break
-                    }
-                }
-            }
-            result += paths[part.length] ?: return null
-        }
-        return result
-    }
+    fun syllables(): List<String>? = splitSyllables(text)
 
     companion object {
         const val MAX_LENGTH = 64
+
+        fun splitSyllables(input: String): List<String>? {
+            if (input.isEmpty()) return emptyList()
+            val result = mutableListOf<String>()
+            for (part in input.split('\'')) {
+                if (part.isEmpty()) continue
+                val paths = arrayOfNulls<List<String>>(part.length + 1)
+                paths[0] = emptyList()
+                for (end in 1..part.length) {
+                    for (start in (end - 6).coerceAtLeast(0) until end) {
+                        val previous = paths[start] ?: continue
+                        val value = part.substring(start, end)
+                        if (value in VALID_SYLLABLES || (end == part.length && VALID_SYLLABLES.any { it.startsWith(value) })) {
+                            paths[end] = previous + value
+                            break
+                        }
+                    }
+                }
+                result += paths[part.length] ?: return null
+            }
+            return result
+        }
+
+        data class HybridSplit(val initialsPrefix: String, val pinyinPattern: String)
+
+        fun parseHybrid(input: String): List<HybridSplit> {
+            if (input.length < 3) return emptyList()
+            val clean = input.replace("'", "")
+            val results = mutableListOf<HybridSplit>()
+            for (i in 1..clean.length - 2) {
+                val head = clean.substring(0, i)
+                val tail = clean.substring(i)
+                val tailSyllables = splitSyllables(tail)
+                if (tailSyllables != null && tailSyllables.isNotEmpty()) {
+                    val fullInitials = head + tailSyllables.map { it[0] }.joinToString("")
+                    val pinyinPattern = head.map { "$it%" }.joinToString("") + tail + "%"
+                    results.add(HybridSplit(fullInitials, pinyinPattern))
+                }
+            }
+            for (i in 2 until clean.length) {
+                val head = clean.substring(0, i)
+                val tail = clean.substring(i)
+                val headSyllables = splitSyllables(head)
+                if (headSyllables != null && headSyllables.isNotEmpty()) {
+                    val fullInitials = headSyllables.map { it[0] }.joinToString("") + tail
+                    val pinyinPattern = head + "%" + tail.map { "$it%" }.joinToString("")
+                    results.add(HybridSplit(fullInitials, pinyinPattern))
+                }
+            }
+            return results.distinct()
+        }
         private val VALID_SYLLABLES = ("a ai an ang ao ba bai ban bang bao bei ben beng bi bian biao bie bin bing bo bu " +
             "ca cai can cang cao ce cen ceng cha chai chan chang chao che chen cheng chi chong chou chu chua chuai chuan chuang chui chun chuo ci cong cou cu cuan cui cun cuo " +
             "da dai dan dang dao de dei den deng di dia dian diao die ding diu dong dou du duan dui dun duo " +

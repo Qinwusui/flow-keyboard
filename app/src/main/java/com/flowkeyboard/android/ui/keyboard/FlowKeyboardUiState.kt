@@ -10,6 +10,11 @@ data class FlowKeyboardUiState(
     val sessionKeystrokes: Int = 0,
     val summary: TypingSummary = TypingSummary(),
     val privateInput: Boolean = false,
+    val emojiMode: Boolean = false,
+    val symbolMode: Boolean = false,
+    val isAssociative: Boolean = false,
+    val isCandidateExpanded: Boolean = false,
 ) {
-    val tracks: List<KeyTrack> get() = KeyTrack.create(settings.keyOrder)
+    val tracks: List<KeyTrack> get() = KeyTrack.create(settings.keyOrder, settings.inputMode, emojiMode, symbolMode)
 }
+

@@ -24,32 +24,60 @@ class FlowPreferencesDataSource(private val store: DataStore<Preferences>) {
         val mode = stringPreferencesKey("input_mode")
         val sound = booleanPreferencesKey("sound")
         val haptics = booleanPreferencesKey("haptics")
+        val vibrationLevel = floatPreferencesKey("vibration_level")
+        val skin = stringPreferencesKey("skin")
+        val customBackground = stringPreferencesKey("custom_background")
+        val backgroundBrightness = floatPreferencesKey("background_brightness")
     }
     val settings: Flow<KeyboardSettings> = store.data.catch { error ->
         if (error is IOException) emit(emptyPreferences()) else throw error
     }.map { p ->
+        val customBg = p[Keys.customBackground]
         KeyboardSettings(
             speed = p[Keys.speed] ?: 64f, direction = p[Keys.direction] ?: 1,
             cruising = p[Keys.cruising] ?: true,
             orientation = enumValue(p[Keys.orientation], BeltOrientation.HORIZONTAL),
             keyOrder = enumValue(p[Keys.order], KeyOrder.QWERTY),
-            inputMode = enumValue(p[Keys.mode], InputMode.ENGLISH),
+            inputMode = enumValue(p[Keys.mode], InputMode.PINYIN),
             soundEnabled = p[Keys.sound] ?: false, hapticsEnabled = p[Keys.haptics] ?: true,
+            vibrationLevel = p[Keys.vibrationLevel] ?: 0.5f,
+            skin = enumValue(p[Keys.skin], KeyboardSkin.SYSTEM),
+            customBackgroundPath = if (customBg.isNullOrBlank()) null else customBg,
+            backgroundBrightness = p[Keys.backgroundBrightness] ?: 0.65f,
         ).normalized()
     }
 
     // Read-modify-write occurs in one DataStore transaction, preserving concurrent setting edits.
     suspend fun update(transform: (KeyboardSettings) -> KeyboardSettings) {
         store.edit { p ->
-            val current = KeyboardSettings(p[Keys.speed] ?: 64f, p[Keys.direction] ?: 1,
-                p[Keys.cruising] ?: true, enumValue(p[Keys.orientation], BeltOrientation.HORIZONTAL),
-                enumValue(p[Keys.order], KeyOrder.QWERTY), enumValue(p[Keys.mode], InputMode.ENGLISH),
-                p[Keys.sound] ?: false, p[Keys.haptics] ?: true)
+            val customBg = p[Keys.customBackground]
+            val current = KeyboardSettings(
+                speed = p[Keys.speed] ?: 64f,
+                direction = p[Keys.direction] ?: 1,
+                cruising = p[Keys.cruising] ?: true,
+                orientation = enumValue(p[Keys.orientation], BeltOrientation.HORIZONTAL),
+                keyOrder = enumValue(p[Keys.order], KeyOrder.QWERTY),
+                inputMode = enumValue(p[Keys.mode], InputMode.PINYIN),
+                soundEnabled = p[Keys.sound] ?: false,
+                hapticsEnabled = p[Keys.haptics] ?: true,
+                vibrationLevel = p[Keys.vibrationLevel] ?: 0.5f,
+                skin = enumValue(p[Keys.skin], KeyboardSkin.SYSTEM),
+                customBackgroundPath = if (customBg.isNullOrBlank()) null else customBg,
+                backgroundBrightness = p[Keys.backgroundBrightness] ?: 0.65f,
+            )
             val value = transform(current).normalized()
             p[Keys.speed] = value.speed; p[Keys.direction] = value.direction
             p[Keys.cruising] = value.cruising; p[Keys.orientation] = value.orientation.name
             p[Keys.order] = value.keyOrder.name; p[Keys.mode] = value.inputMode.name
             p[Keys.sound] = value.soundEnabled; p[Keys.haptics] = value.hapticsEnabled
+            p[Keys.vibrationLevel] = value.vibrationLevel
+            p[Keys.skin] = value.skin.name
+            if (value.customBackgroundPath.isNullOrBlank()) {
+                p.remove(Keys.customBackground)
+            } else {
+                p[Keys.customBackground] = value.customBackgroundPath
+            }
+            p[Keys.backgroundBrightness] = value.backgroundBrightness
         }
     }
     private inline fun <reified T : Enum<T>> enumValue(value: String?, fallback: T): T =

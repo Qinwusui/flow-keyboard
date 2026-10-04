@@ -22,6 +22,13 @@ class KeyboardActionHandler(
         return input.deleteSurroundingText(count, 0)
     }
 
+    fun deleteBeforeCursor(charCount: Int): Boolean {
+        val input = connection() ?: return false
+        if (charCount <= 0) return true
+        if (!input.getSelectedText(0).isNullOrEmpty()) input.commitText("", 1)
+        return input.deleteSurroundingText(charCount, 0)
+    }
+
     fun enter(): Boolean {
         val info = editorInfo()
         val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
@@ -36,6 +43,6 @@ class KeyboardActionHandler(
         KeyType.CHARACTER, KeyType.SPACE -> commit(key.value)
         KeyType.BACKSPACE -> backspace()
         KeyType.ENTER -> enter()
-        KeyType.SHIFT, KeyType.MODE -> false
+        KeyType.SHIFT, KeyType.MODE, KeyType.EMOJI, KeyType.SYMBOL -> false
     }
 }

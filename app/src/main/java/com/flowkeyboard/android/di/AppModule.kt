@@ -32,5 +32,5 @@ val appModule = module {
     factory { PinyinEngine() }
     factory { FeedbackEngine(androidContext()) }
     viewModel { FlowKeyboardViewModel(get(), get(), get(), get(), get()) }
-    viewModel { MainViewModel(get(), get()) }
+    viewModel { MainViewModel(get(), get(), get()) }
 }

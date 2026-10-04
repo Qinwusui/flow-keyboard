@@ -40,6 +40,7 @@ class FlowKeyboardServiceTest {
         every { settings.settings } returns MutableStateFlow(KeyboardSettings())
         every { dictionary.summary } returns MutableStateFlow(TypingSummary())
         every { dictionary.search(any()) } returns MutableStateFlow(emptyList())
+        every { dictionary.predictNext(any()) } returns MutableStateFlow(emptyList())
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         startKoin {
             androidContext(ApplicationProvider.getApplicationContext())
